@@ -230,106 +230,156 @@ window.calcFeeUI = function() {
   el('pf_fee_disp').textContent = fee; el('pf_fee').value = fee; el('pf_dist_km').value = (distanceMeters/1000).toFixed(2);
 }
 
-function openOrderForm(id = null) {
-  let d = { OrderID:'', OrderRef:'', CustomerName:'', DistanceKM:'', FeeTHB:0, PaymentMethod:'เงินสด', TotalPrice:'' };
-  if(id && State.cache.todayOrders) { const f = State.cache.todayOrders.find(o => o.OrderID === id); if(f) d = f; }
+/* ========================================================
+   ระบบคำนวณค่ารอบอัจฉริยะ (Real-time Calculator)
+   ======================================================== */
+window.calcFeeUI = function() {
+  const distInput = parseFloat(el('f_distance').value) || 0;
+  const unit = el('pf_unit').value;
+  // แปลงให้เป็นเมตรเสมอเพื่อการคำนวณที่แม่นยำ
+  let distanceMeters = unit === 'km' ? distInput * 1000 : distInput;
+  let fee = 0;
   
+  if (distanceMeters > 0) {
+    if (distanceMeters <= 300) fee = 5;
+    else if (distanceMeters <= 500) fee = 10;
+    else if (distanceMeters <= 3000) fee = 15;
+    else fee = 25;
+  }
+  
+  // แสดงตัวเลขค่าจัดส่งที่คำนวณได้
+  el('f_fee_disp').textContent = fee; 
+  el('f_fee').value = fee; 
+  el('pf_dist_km').value = (distanceMeters / 1000).toFixed(2); // แปลงกลับเป็นกิโลเมตรเพื่อบันทึกลงฐานข้อมูล
+}
+
+function openOrderForm(id = null) {
+  let d = { OrderID:'', OrderRef:'', CustomerName:'', DistanceKM:'', FeeTHB:0, PaymentMethod:'เงินสด', TotalPrice:'', OrderDate:'' };
+  
+  if(id && State.cache.todayOrders) { 
+    const f = State.cache.todayOrders.find(o => o.OrderID === id); 
+    if(f) d = f; 
+  }
+  
+  // แยก Prefix ออเดอร์อัตโนมัติ
   let prefix = 'CPTH'; let num = '';
   if (d.OrderRef.startsWith('AMTH')) { prefix = 'AMTH'; num = d.OrderRef.replace('AMTH',''); }
   else if (d.OrderRef.startsWith('CPTH')) { prefix = 'CPTH'; num = d.OrderRef.replace('CPTH',''); }
   else { num = d.OrderRef; }
 
-  const today = new Date().toISOString().substring(0,10);
+  // ใช้วันที่วันนี้เป็นค่าเริ่มต้น หรือใช้วันที่ที่เคยบันทึกไว้ (กรณีแก้ไข)
+  const todayStr = new Date().toISOString().substring(0,10);
+  const displayDate = d.OrderDate ? d.OrderDate.substring(0,10) : todayStr;
 
   const html = `
     <div class="space-y-4">
-      <input type="hidden" id="f_id" value="${d.OrderID}"><input type="hidden" id="f_fee" value="${d.FeeTHB}"><input type="hidden" id="f_date" value="${today}">
-      <div class="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-4 text-white text-center shadow-lg mb-6"><p class="text-xs font-medium opacity-80 uppercase">ค่ารอบจัดส่ง (บาท)</p><div class="text-5xl font-black mt-1"><span id="f_fee_disp">${d.FeeTHB}</span><span class="text-2xl ml-1">฿</span></div></div>
+      <input type="hidden" id="f_id" value="${d.OrderID}">
+      <input type="hidden" id="f_fee" value="${d.FeeTHB}">
+      <input type="hidden" id="pf_dist_km" value="${d.DistanceKM}">
+      
+      <div class="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-4 text-white text-center shadow-lg mb-6">
+        <p class="text-xs font-medium opacity-80 uppercase">ค่ารอบจัดส่ง (บาท)</p>
+        <div class="text-5xl font-black mt-1"><span id="f_fee_disp">${d.FeeTHB}</span><span class="text-2xl ml-1">฿</span></div>
+      </div>
+
       <div class="grid grid-cols-1 gap-4">
-        <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📦 เลขออเดอร์ <span class="text-red-500">*</span></label><div class="flex gap-2"><select id="f_prefix" class="input w-1/3 bg-slate-50 font-bold text-center"><option value="CPTH" ${prefix==='CPTH'?'selected':''}>CPTH</option><option value="AMTH" ${prefix==='AMTH'?'selected':''}>AMTH</option></select><input id="f_num" type="number" class="input w-2/3 font-mono text-lg" placeholder="ตัวเลข 4 หลัก" value="${num}"></div></div>
-        <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📍 ระยะทาง <span class="text-red-500">*</span></label><div class="flex gap-2"><input id="f_distance" type="number" step="0.01" class="input font-bold text-blue-600 text-lg w-2/3" placeholder="เช่น 1.5" value="${d.DistanceKM ? d.DistanceKM * 1000 : ''}" oninput="calcFeeUI()"><select id="pf_unit" class="input w-1/3 bg-slate-50 font-bold" onchange="calcFeeUI()"><option value="m">เมตร (m)</option><option value="km">กิโล (km)</option></select></div><p class="text-[9px] text-slate-400 mt-1.5 ml-1 text-center font-medium bg-slate-100 rounded-lg py-1">0-300m = 5฿ | 301-500m = 10฿ | 501-3km = 15฿ | >3km = 25฿</p></div>
+        <!-- เพิ่มช่อง "วันที่วิ่งงาน" สำหรับลงย้อนหลัง -->
+        <div>
+          <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📅 วันที่วิ่งงาน <span class="text-red-500">*</span></label>
+          <input id="f_date" type="date" class="input font-bold text-slate-700 bg-slate-50 border-none" value="${displayDate}">
+        </div>
+
+        <div>
+          <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📦 เลขออเดอร์ <span class="text-red-500">*</span></label>
+          <div class="flex gap-2">
+            <select id="f_prefix" class="input w-1/3 bg-slate-50 font-bold text-center text-main border-none">
+              <option value="CPTH" ${prefix==='CPTH'?'selected':''}>CPTH</option>
+              <option value="AMTH" ${prefix==='AMTH'?'selected':''}>AMTH</option>
+            </select>
+            <input id="f_num" type="number" class="input w-2/3 font-mono text-lg bg-slate-50 border-none" placeholder="เช่น 1234" value="${num}">
+          </div>
+        </div>
+        
+        <div>
+          <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📍 ระยะทาง <span class="text-red-500">*</span></label>
+          <div class="flex gap-2">
+            <input id="f_distance" type="number" step="0.01" class="input font-bold text-blue-600 text-lg w-2/3 bg-slate-50 border-none" placeholder="เช่น 1.5" value="${d.DistanceKM ? d.DistanceKM * 1000 : ''}" oninput="calcFeeUI()">
+            <select id="pf_unit" class="input w-1/3 bg-slate-50 border-none font-bold text-slate-600" onchange="calcFeeUI()">
+              <option value="m">เมตร (m)</option>
+              <option value="km">กิโล (km)</option>
+            </select>
+          </div>
+          <p class="text-[9px] text-slate-400 mt-1.5 text-center font-medium bg-slate-100 rounded-lg py-1">0-300m=5฿ | 301-500m=10฿ | 501-3km=15฿ | >3km=25฿</p>
+        </div>
+
         <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">👤 ชื่อลูกค้า (ตัวเลือก)</label><input id="f_cust" type="text" class="input bg-slate-50 border-none" value="${d.CustomerName}" placeholder="ระบุชื่อลูกค้า"></div>
-        <div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💰 ยอดเก็บเงิน</label><input id="f_total" type="number" class="input bg-slate-50 border-none" value="${d.TotalPrice}" placeholder="บาท"></div><div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💳 วิธีชำระเงิน</label><select id="f_pay" class="input bg-slate-50 border-none"><option ${d.PaymentMethod==='เงินสด'?'selected':''}>เงินสด</option><option ${d.PaymentMethod==='โอน/เครดิต'?'selected':''}>โอน/เครดิต</option><option ${d.PaymentMethod==='TrueWallet'?'selected':''}>TrueWallet</option></select></div></div>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💰 ยอดเก็บเงิน</label><input id="f_total" type="number" class="input bg-slate-50 border-none" value="${d.TotalPrice}" placeholder="บาท"></div>
+          <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💳 วิธีชำระเงิน</label>
+            <select id="f_pay" class="input bg-slate-50 border-none text-xs">
+              <option ${d.PaymentMethod==='เงินสด'?'selected':''}>เงินสด</option>
+              <option ${d.PaymentMethod==='โอน/เครดิต'?'selected':''}>โอน/เครดิต</option>
+              <option ${d.PaymentMethod==='TrueWallet'?'selected':''}>TrueWallet</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   `;
+  
   openModal(id ? '✏️ แก้ไขข้อมูลงาน' : '🛵 บันทึกงานใหม่', html, `<button onclick="closeModal()" class="btn btn-secondary py-3 flex-1">ยกเลิก</button><button id="btnSaveOrder" onclick="saveOrderFunc()" class="btn btn-primary px-6 py-3 flex-1">บันทึกงาน</button>`);
+  
+  // บังคับคำนวณ 1 ครั้งตอนเปิดฟอร์มแก้ไข เพื่อดึงค่าระยะทางแปลงเป็นเงินให้เห็นทันที
   if(id) { el('pf_unit').value = 'km'; calcFeeUI(); }
 }
 
 async function saveOrderFunc() {
-  const num = el('f_num').value.trim(); const dist = parseFloat(el('f_distance').value);
+  const num = el('f_num').value.trim(); 
+  const dist = parseFloat(el('f_distance').value);
+  const dateVal = el('f_date').value;
+  
+  if (!dateVal) return Swal.fire('แจ้งเตือน', 'กรุณาระบุวันที่วิ่งงาน', 'warning');
   if (!num) return Swal.fire('แจ้งเตือน', 'กรุณาระบุเลขที่ออเดอร์', 'warning');
   if (isNaN(dist) || dist < 0) return Swal.fire('แจ้งเตือน', 'กรุณาระบุระยะทางให้ถูกต้อง', 'warning');
   
   const finalRef = el('f_prefix').value + num;
-  const data = { OrderID: el('f_id').value, OrderDate: el('f_date') ? el('f_date').value : new Date().toISOString().substring(0,10), OrderRef: finalRef, CustomerName: el('f_cust').value, DistanceKM: el('pf_dist_km').value, FeeTHB: el('f_fee').value, PaymentMethod: el('f_pay').value, TotalPrice: el('f_total').value||0 };
+  const data = { 
+    OrderID: el('f_id').value, 
+    OrderDate: dateVal, 
+    OrderRef: finalRef, 
+    CustomerName: el('f_cust').value, 
+    DistanceKM: el('pf_dist_km').value, // ค่าที่ผ่านการแปลงเป็นกิโลเมตรแล้ว
+    FeeTHB: el('f_fee').value, 
+    PaymentMethod: el('f_pay').value, 
+    TotalPrice: el('f_total').value || 0 
+  };
   
-  const btn = el('btnSaveOrder'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-  try { await gas('saveOrder', data, State.user); closeModal(); Swal.fire('สำเร็จ', 'บันทึกข้อมูลเรียบร้อย', 'success'); loadCurrentPage(); } 
-  catch(e) { Swal.fire('Error', e.message, 'error'); btn.disabled = false; btn.innerHTML = 'บันทึกงาน'; }
+  el('btnSaveOrder').disabled = true; 
+  el('btnSaveOrder').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังบันทึก...';
+  
+  try { 
+    await gas('saveOrder', data, State.user); 
+    closeModal(); 
+    Swal.fire('สำเร็จ', 'บันทึกข้อมูลเรียบร้อย', 'success'); 
+    loadCurrentPage(); // รีเฟรชหน้าเพื่อแสดงข้อมูลใหม่ทันที
+  } catch(e) { 
+    Swal.fire('เกิดข้อผิดพลาด', e.message, 'error'); 
+    el('btnSaveOrder').disabled = false; 
+    el('btnSaveOrder').innerHTML = 'บันทึกงาน'; 
+  }
 }
 
 function deleteOrderReq(id) {
   Swal.fire({ title: 'ยืนยันลบข้อมูล?', text: "ไม่สามารถกู้คืนได้", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบข้อมูล' }).then(res => {
-    if(res.isConfirmed) { Swal.showLoading(); gas('deleteOrder', id, State.user).then(r => { Swal.fire('ลบแล้ว!', '', 'success'); loadCurrentPage(); }).catch(e => Swal.fire('Error', e.message, 'error')); }
-  });
-}
-
-async function render_dashboard() {
-  try {
-    const d = await gas('getDashboardData', State.user.UserID, State.user.Role); State.cache.orders = d.orders; const s = d.summary;
-
-    let html = `
-      <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl p-6 mb-6 text-white shadow-lg relative overflow-hidden">
-        <i class="fa-solid fa-motorcycle text-8xl absolute -right-4 -bottom-4 opacity-10"></i>
-        <p class="text-sm font-medium opacity-80">ยอดเงินค่ารอบวันนี้</p>
-        <h2 class="text-5xl font-black mt-1 mb-4">฿${s.todayIncome}</h2>
-        <div class="flex gap-4 border-t border-white/20 pt-4">
-          <div><p class="text-[10px] opacity-70 uppercase">งานวันนี้</p><p class="font-bold text-lg">${s.todayOrders} งาน</p></div>
-          <div class="border-l border-white/20 pl-4"><p class="text-[10px] opacity-70 uppercase">เดือนนี้</p><p class="font-bold text-lg">฿${s.monthIncome}</p></div>
-        </div>
-      </div>
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="font-bold text-slate-700 text-sm"><i class="fa-regular fa-clock text-main mr-1"></i> ออเดอร์ล่าสุดวันนี้</h3>
-        <button onclick="navigate('orders')" class="text-xs font-bold text-slate-400 hover:text-main">ดูทั้งหมด ></button>
-      </div>
-    `;
-
-    const todaysOnly = d.orders.filter(o => String(o.OrderDate).startsWith(new Date().toISOString().substring(0,10)));
-
-    if(todaysOnly.length === 0) {
-      html += `<div class="bg-white rounded-2xl shadow-sm border border-dashed p-10 text-center text-slate-400"><i class="fa-solid fa-mug-hot text-5xl mb-3 opacity-50"></i><p class="text-sm mt-2">ยังไม่มีงานในวันนี้<br>เริ่มรับออเดอร์แรกกันเลย!</p></div>`;
-    } else {
-      html += `<div class="space-y-3">`;
-      todaysOnly.slice(0,10).forEach(o => {
-        let isPaid = o.Status === 'จ่ายแล้ว';
-        html += `
-        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center active:scale-95 transition ${isPaid?'opacity-60':''}">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold border border-orange-100"><i class="fa-solid fa-box"></i></div>
-            <div>
-              <p class="font-bold text-slate-800 text-sm">${o.OrderRef}</p>
-              <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-route opacity-50"></i> ${o.DistanceKM} กม.</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="text-right">
-              <p class="font-black text-emerald-500 text-lg">+฿${o.FeeTHB}</p>
-              ${isPaid ? `<p class="text-[8px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">จ่ายแล้ว</p>` : ''}
-            </div>
-            ${!isPaid ? `
-            <div class="border-l border-slate-100 pl-3 flex flex-col gap-1.5">
-              <button onclick="openOrderForm('${o.OrderID}')" class="text-slate-400 hover:text-blue-500"><i class="fa-solid fa-pen text-xs"></i></button>
-              <button onclick="deleteOrderReq('${o.OrderID}')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
-            </div>` : ''}
-          </div>
-        </div>`;
-      });
-      html += `</div>`;
+    if(res.isConfirmed) { 
+      Swal.showLoading(); 
+      gas('deleteOrder', id, State.user).then(r => { 
+        Swal.fire('ลบแล้ว!', '', 'success'); 
+        loadCurrentPage(); 
+      }).catch(e => Swal.fire('Error', e.message, 'error')); 
     }
-    el('content').innerHTML = html; State.cache.todayOrders = todaysOnly;
-  } catch(e) { el('content').innerHTML = errorHtml(e); }
+  });
 }
 
 async function render_orders() {
