@@ -47,11 +47,16 @@
 <!-- หน้าต่าง Login -->
 <div id="loginScreen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-[100]">
   <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md relative text-center">
-    <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-main text-white text-4xl mb-4 shadow-lg shadow-orange-500/30"><i class="fa-solid fa-motorcycle"></i></div>
+    
+    <!-- 💡 เปลี่ยนรูปไอคอนในหน้าล็อกอินตรงนี้ครับ -->
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-main text-white mb-4 shadow-lg shadow-orange-500/30">
+      <img src="https://cdn-icons-png.flaticon.com/512/9561/9561640.png" class="w-12 h-12 invert">
+    </div>
+
     <h1 class="text-2xl font-bold text-slate-800">Rider Tracking</h1>
     <p class="text-sm text-slate-500 mt-1 mb-2">ระบบบันทึกและคำนวณค่ารอบ</p>
     
-    <p class="text-xs font-mono text-slate-400 mt-1">Version: 10.3 (Ultra Fast Load)</p>
+    <p class="text-xs font-mono text-slate-400 mt-1">Version: 10.5 (Rider System Restored)</p>
     <p class="text-xs font-mono text-slate-500 mt-0.5 font-medium">Dev: Kitti Prapakarn</p>
     
     <div class="space-y-4 mt-6 text-left">
@@ -60,7 +65,6 @@
       <div id="loginError" class="text-sm font-medium text-center hidden p-3 bg-red-50 text-red-600 rounded-xl border border-red-200"></div>
       <button id="btnLogin" onclick="doLogin()" class="btn btn-primary w-full py-3 text-base mt-2 shadow-md">เข้าสู่ระบบ</button>
       
-      <!-- ปุ่มติดตั้งแอป สีเทา -->
       <button id="btnInstallPwa" onclick="handleInstallPwa()" class="w-full py-2.5 mt-2 rounded-xl font-bold text-sm bg-slate-200 text-slate-600 active:scale-95 transition flex items-center justify-center">
         <i class="fa-solid fa-download mr-2"></i> ติดตั้งแอปลงมือถือ
       </button>
@@ -104,11 +108,9 @@
   </div>
 </div>
 
-<div id="toast" class="hidden fixed top-6 right-6 z-[80] text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 transition-opacity"></div>
-
 <script>
 // ==============================================================================
-// 🚨 วาง URL ของ Google Apps Script ที่ Deploy เสร็จแล้ว มาวางในนี้ 🚨
+// 🚨 วาง URL ของ Google Apps Script (Backend ไรเดอร์) ที่ Deploy แล้ว มาวางในนี้ 🚨
 // ==============================================================================
 const API_URL = "https://script.google.com/macros/s/AKfycby4jjAPznSLXj_iuoOJ8rwBcsPZvAOsFRnoppJXDuIGi_j9muA-kCPm6gGbvUp2loil/exec"; 
 
@@ -131,9 +133,7 @@ function hide(id) { if(el(id)) el(id).classList.add('hidden'); }
 
 window.addEventListener('beforeinstallprompt', function(e) { 
   e.preventDefault(); deferredPrompt = e; 
-  if(el('btnInstallPwa')){ 
-    el('btnInstallPwa').innerHTML = '<i class="fa-solid fa-download mr-2"></i> ติดตั้งแอปลงมือถือทันที'; 
-  } 
+  if(el('btnInstallPwa')){ el('btnInstallPwa').innerHTML = '<i class="fa-solid fa-download mr-2"></i> ติดตั้งแอปลงมือถือทันที'; } 
 });
 
 function handleInstallPwa() {
@@ -143,13 +143,6 @@ function handleInstallPwa() {
     let instructionHtml = isIOS ? `<div class='bg-blue-50 p-4 rounded-xl border border-blue-100 text-left'><p class='font-bold text-blue-700 mb-2'><i class='fa-brands fa-apple text-xl mr-1'></i> สำหรับ iPhone (Safari)</p><ol class='list-decimal pl-5 space-y-1 text-slate-700'><li>กดปุ่ม <b>แชร์ (Share)</b> ตรงแถบด้านล่าง</li><li>เลื่อนหาคำว่า <b>เพิ่มไปยังหน้าจอโฮม</b></li></ol></div>` : `<div class='bg-green-50 p-4 rounded-xl border border-green-100 text-left'><p class='font-bold text-green-700 mb-2'><i class='fa-brands fa-android text-xl mr-1'></i> สำหรับ Android (Chrome)</p><ol class='list-decimal pl-5 space-y-1 text-slate-700'><li>กดปุ่ม <b>เมนูจุด 3 จุด</b> มุมขวาบน</li><li>เลือก <b>เพิ่มลงในหน้าจอหลัก</b></li></ol></div>`;
     el('modalPwaBody').innerHTML = `<div class='space-y-4 text-sm text-center'><p class='font-bold text-base text-slate-800'>สร้างคีย์ลัดไว้ที่หน้าจอมือถือ</p>${instructionHtml}</div>`; show('modalPwa');
   }
-}
-
-function toast(msg, type) { 
-  const t = el('toast'); t.className = "fixed bottom-6 right-6 md:top-6 md:bottom-auto z-[80] text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 text-sm "; 
-  t.className += (type === 'error' ? 'bg-red-600' : 'bg-emerald-500');
-  t.innerHTML = "<i class='fa-solid " + (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check') + " text-xl'></i> <span class='font-medium'>" + msg + "</span>"; 
-  show('toast'); setTimeout(function() { hide('toast'); }, 3000); 
 }
 
 function openModal(title, body, footer) { el('modalTitle').textContent = title; el('modalBody').innerHTML = body; el('modalFooter').innerHTML = footer; show('modal'); }
@@ -186,6 +179,7 @@ function navigate(page) {
 }
 
 function loadCurrentPage() { 
+  el('content').innerHTML = `<div class='flex justify-center p-10'><i class="fa-solid fa-circle-notch fa-spin text-3xl text-main"></i></div>`; 
   if(window['render_' + State.currentPage]) { window['render_' + State.currentPage](); }
 }
 
@@ -194,7 +188,14 @@ async function openMyProfile() {
   try {
     const stats = await gas('getMyStats', State.user.UserID).catch(e => { return {handledCount:0}; });
     let profileHtml = `
-      <div class="text-center mb-4"><div class="w-20 h-20 bg-orange-100 text-orange-600 rounded-full mx-auto flex items-center justify-center text-4xl mb-3 border-4 border-orange-200 shadow-inner"><i class="fa-solid fa-motorcycle"></i></div><h3 class="font-bold text-lg">${State.user.FullName}</h3><p class="text-xs text-slate-500 uppercase">${State.user.Role}</p></div>
+      <div class="text-center mb-4">
+        <!-- 💡 เปลี่ยนรูปไอคอนในหน้าโปรไฟล์ตรงนี้ครับ -->
+        <div class="w-20 h-20 bg-orange-100 text-orange-600 rounded-full mx-auto flex items-center justify-center text-4xl mb-3 border-4 border-orange-200 shadow-inner">
+          <img src="https://cdn-icons-png.flaticon.com/512/9561/9561640.png" class="w-10 h-10 opacity-70">
+        </div>
+        <h3 class="font-bold text-lg">${State.user.FullName}</h3>
+        <p class="text-xs text-slate-500 uppercase">${State.user.Role}</p>
+      </div>
       <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100 mb-4 shadow-sm"><p class="text-xs text-orange-600 font-bold uppercase mb-1">🛵 งานที่วิ่งสำเร็จ</p><div class="text-2xl font-black text-slate-800">${stats.handledCount} <span class="text-sm font-medium text-slate-500">ออเดอร์</span></div></div>
       <div class="space-y-3 text-left">
         <div><label class="text-xs font-bold text-slate-500 mb-1 block">รหัสพนักงาน</label><input class="input bg-slate-100" value="${State.user.EmpID||'-'}" disabled></div>
@@ -216,24 +217,16 @@ async function saveMyProfile() {
 }
 
 /* ========================================================
-   ระบบคำนวณและฟอร์มบันทึกงาน
+   ระบบคำนวณและฟอร์มบันทึกงานไรเดอร์
    ======================================================== */
 window.calcFeeUI = function() {
-  const distInput = parseFloat(el('f_distance').value) || 0;
-  const unit = el('pf_unit').value;
+  const distInput = parseFloat(el('f_distance').value) || 0; const unit = el('pf_unit').value;
   let distanceMeters = unit === 'km' ? distInput * 1000 : distInput;
   let fee = 0;
-  
   if (distanceMeters > 0) {
-    if (distanceMeters <= 300) fee = 5;
-    else if (distanceMeters <= 500) fee = 10;
-    else if (distanceMeters <= 3000) fee = 15;
-    else fee = 25;
+    if (distanceMeters <= 300) fee = 5; else if (distanceMeters <= 500) fee = 10; else if (distanceMeters <= 3000) fee = 15; else fee = 25;
   }
-  
-  el('f_fee_disp').textContent = fee; 
-  el('f_fee').value = fee; 
-  el('pf_dist_km').value = (distanceMeters / 1000).toFixed(2);
+  el('f_fee_disp').textContent = fee; el('f_fee').value = fee; el('pf_dist_km').value = (distanceMeters/1000).toFixed(2);
 }
 
 function openOrderForm(id = null) {
@@ -253,9 +246,7 @@ function openOrderForm(id = null) {
 
   const html = `
     <div class="space-y-4">
-      <input type="hidden" id="f_id" value="${d.OrderID}">
-      <input type="hidden" id="f_fee" value="${d.FeeTHB}">
-      <input type="hidden" id="pf_dist_km" value="${d.DistanceKM}">
+      <input type="hidden" id="f_id" value="${d.OrderID}"><input type="hidden" id="f_fee" value="${d.FeeTHB}"><input type="hidden" id="pf_dist_km" value="${d.DistanceKM}">
       
       <div class="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-4 text-white text-center shadow-lg mb-6">
         <p class="text-xs font-medium opacity-80 uppercase">ค่ารอบจัดส่ง (บาท)</p>
@@ -279,7 +270,7 @@ function openOrderForm(id = null) {
             <input id="f_distance" type="number" step="0.01" class="input font-bold text-blue-600 text-lg w-2/3 bg-slate-50 border-none" placeholder="ระยะทาง" value="${displayDist}" oninput="calcFeeUI()">
             <select id="pf_unit" class="input w-1/3 bg-slate-50 border-none font-bold text-slate-600" onchange="calcFeeUI()"><option value="m" ${displayUnit==='m'?'selected':''}>เมตร (m)</option><option value="km" ${displayUnit==='km'?'selected':''}>กิโล (km)</option></select>
           </div>
-          <p class="text-[9px] text-slate-400 mt-1.5 text-center font-medium bg-slate-100 rounded-lg py-1">0-300m=5฿ | 301-500m=10฿ | 501-3km=15฿ | >3km=25฿</p>
+          <p class="text-[9px] text-slate-400 mt-1.5 ml-1 text-center font-medium bg-slate-100 rounded-lg py-1">0-300m = 5฿ | 301-500m = 10฿ | 501-3km = 15฿ | >3km = 25฿</p>
         </div>
 
         <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">👤 ชื่อลูกค้า (ตัวเลือก)</label><input id="f_cust" type="text" class="input bg-slate-50 border-none" value="${d.CustomerName || ''}" placeholder="ระบุชื่อลูกค้า"></div>
@@ -296,7 +287,6 @@ function openOrderForm(id = null) {
   if(id) { calcFeeUI(); }
 }
 
-// Auto-fill ดึงประวัติลูกค้าเก่ามาใส่ฟอร์ม
 function checkAutoFill(numVal) {
   if(!numVal || el('f_id').value !== '') return;
   const fullRef = el('f_prefix').value + numVal;
@@ -305,9 +295,7 @@ function checkAutoFill(numVal) {
     hide('f_loading');
     if (State.cache.orders) {
       const found = State.cache.orders.find(o => o.OrderRef === fullRef);
-      if (found) {
-        if(el('f_cust') && !el('f_cust').value) el('f_cust').value = found.CustomerName;
-      }
+      if (found) { if(el('f_cust') && !el('f_cust').value) el('f_cust').value = found.CustomerName; }
     }
   }, 300);
 }
@@ -319,7 +307,7 @@ async function saveOrderFunc() {
   if (isNaN(dist) || dist < 0) return Swal.fire('แจ้งเตือน', 'กรุณาระบุระยะทางให้ถูกต้อง', 'warning');
   
   const finalRef = el('f_prefix').value + num;
-  const data = { OrderID: el('f_id').value, OrderDate: dateVal, OrderRef: finalRef, CustomerName: el('f_cust').value, DistanceKM: el('pf_dist_km').value, FeeTHB: el('f_fee').value, PaymentMethod: el('f_pay').value, TotalPrice: el('f_total').value || 0 };
+  const data = { OrderID: el('f_id').value, OrderDate: dateVal, OrderRef: finalRef, CustomerName: el('f_cust').value, DistanceKM: el('pf_dist_km').value, FeeTHB: el('pf_fee') ? el('pf_fee').value : el('f_fee').value, PaymentMethod: el('f_pay').value, TotalPrice: el('f_total').value || 0 };
   
   el('btnSaveOrder').disabled = true; el('btnSaveOrder').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>';
   
@@ -334,9 +322,7 @@ function deleteOrderReq(id) {
   });
 }
 
-/* ========================================================
-   หน้าแดชบอร์ด (โหลดเร็ว Optimistic UI)
-   ======================================================== */
+// ================= แดชบอร์ด & ประวัติงาน =================
 async function render_dashboard() {
   const drawUI = (s, ordersList) => {
     let html = `
@@ -363,7 +349,7 @@ async function render_dashboard() {
         html += `
         <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center active:scale-95 transition ${isPaid?'opacity-60':''}">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold border border-orange-100"><i class="fa-solid fa-box"></i></div>
+            <div class="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold border border-orange-100"><img src="https://cdn-icons-png.flaticon.com/512/9561/9561640.png" class="w-6 h-6 opacity-70"></div>
             <div><p class="font-bold text-slate-800 text-sm">${o.OrderRef}</p><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-route opacity-50"></i> ${o.DistanceKM} กม.</p></div>
           </div>
           <div class="flex items-center gap-3">
@@ -464,9 +450,10 @@ window.approveSettle = function() {
   });
 }
 
+// ================= จัดการแอดมิน =================
 function makePage(opt) { 
   return async function() { 
-    try { const list = await gas(opt.fetchFn, {}); State.cache[opt.title] = list; State.cache.gpOpts = opt; el('content').innerHTML = `<div class="bg-white rounded-2xl shadow-sm border p-4 mb-4 flex justify-between"><input id="gpS" placeholder="ค้นหาพนักงาน..." class="input max-w-xs border-none bg-slate-50" oninput="window.renderGPRows()" /><button onclick="openGPForm()" class="btn btn-primary rounded-xl px-4"><i class="fa-solid fa-plus md:mr-1"></i> <span class="hidden md:inline">เพิ่มพนักงาน</span></button></div><div class="bg-white rounded-2xl shadow-sm border overflow-x-auto"><table class="w-full text-sm text-left whitespace-nowrap"><thead class="bg-slate-50 border-b"><tr>${opt.cols.map(c => `<th class="p-4 font-bold text-slate-500">${c.label}</th>`).join('')}<th class="p-4 text-center font-bold text-slate-500">จัดการ</th></tr></thead><tbody id="gpTb" class="divide-y"></tbody></table></div>`; window.renderGPRows(); } catch(e) { el('content').innerHTML = errorHtml(e); } 
+    try { const list = await gas(opt.fetchFn, {}); State.cache[opt.title] = list; State.cache.gpOpts = opt; el('content').innerHTML = `<div class="bg-white rounded-2xl shadow-sm border p-4 mb-4 flex justify-between"><input id="gpS" placeholder="ค้นหาพนักงาน..." class="input max-w-xs border-none bg-slate-50" oninput="window.renderGPRows()" /><button onclick="openGPForm()" class="btn btn-primary rounded-xl px-4"><i class="fa-solid fa-plus md:mr-1"></i> <span class="hidden md:inline">เพิ่ม</span></button></div><div class="bg-white rounded-2xl shadow-sm border overflow-x-auto"><table class="w-full text-sm text-left whitespace-nowrap"><thead class="bg-slate-50 border-b"><tr>${opt.cols.map(c => `<th class="p-4 font-bold text-slate-500">${c.label}</th>`).join('')}<th class="p-4 text-center font-bold text-slate-500">จัดการ</th></tr></thead><tbody id="gpTb" class="divide-y"></tbody></table></div>`; window.renderGPRows(); } catch(e) { el('content').innerHTML = errorHtml(e); } 
   } 
 }
 window.renderGPRows = function() { 
@@ -497,4 +484,4 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 </body>
-</html>
+      </html>
