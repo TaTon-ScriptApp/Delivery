@@ -47,11 +47,13 @@
 <!-- หน้าต่าง Login -->
 <div id="loginScreen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-[100]">
   <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md relative text-center">
-    <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-main text-white text-4xl mb-4 shadow-lg shadow-orange-500/30"><i class="fa-solid fa-motorcycle"></i></div>
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-main text-white mb-4 shadow-lg shadow-orange-500/30">
+      <img src="https://cdn-icons-png.flaticon.com/512/9561/9561640.png" class="w-12 h-12 invert">
+    </div>
     <h1 class="text-2xl font-bold text-slate-800">Rider Tracking</h1>
     <p class="text-sm text-slate-500 mt-1 mb-2">ระบบบันทึกและคำนวณค่ารอบ</p>
     
-    <p class="text-xs font-mono text-slate-400 mt-1">Version: 1.0.3 (Ultra Fast Load)</p>
+    <p class="text-xs font-mono text-slate-400 mt-1">Version: 10.4 (UI Fixed)</p>
     <p class="text-xs font-mono text-slate-500 mt-0.5 font-medium">Dev: Kitti Prapakarn</p>
     
     <div class="space-y-4 mt-6 text-left">
@@ -110,7 +112,7 @@
 // ==============================================================================
 // 🚨 วาง URL ของ Google Apps Script ที่ Deploy เสร็จแล้ว มาวางในนี้ 🚨
 // ==============================================================================
-const API_URL = "https://script.google.com/macros/s/AKfycby4jjAPznSLXj_iuoOJ8rwBcsPZvAOsFRnoppJXDuIGi_j9muA-kCPm6gGbvUp2loil/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycby4jjAPznSLXj_iuoOJ8rwBcsPZvAOsFRnoppJXDuIGi_j9muA-kCPm6gGbvUp2loil/exec";"; 
 
 function gas(fn, ...args) {
   return new Promise(async function(resolve, reject) {
@@ -186,6 +188,7 @@ function navigate(page) {
 }
 
 function loadCurrentPage() { 
+  el('content').innerHTML = `<div class='flex justify-center p-10'><i class="fa-solid fa-circle-notch fa-spin text-3xl text-main"></i></div>`; 
   if(window['render_' + State.currentPage]) { window['render_' + State.currentPage](); }
 }
 
@@ -194,7 +197,13 @@ async function openMyProfile() {
   try {
     const stats = await gas('getMyStats', State.user.UserID).catch(e => { return {handledCount:0}; });
     let profileHtml = `
-      <div class="text-center mb-4"><div class="w-20 h-20 bg-orange-100 text-orange-600 rounded-full mx-auto flex items-center justify-center text-4xl mb-3 border-4 border-orange-200 shadow-inner"><i class="fa-solid fa-motorcycle"></i></div><h3 class="font-bold text-lg">${State.user.FullName}</h3><p class="text-xs text-slate-500 uppercase">${State.user.Role}</p></div>
+      <div class="text-center mb-4">
+        <div class="w-20 h-20 bg-orange-100 text-orange-600 rounded-full mx-auto flex items-center justify-center text-4xl mb-3 border-4 border-orange-200 shadow-inner">
+          <img src="https://cdn-icons-png.flaticon.com/512/9561/9561640.png" class="w-10 h-10 opacity-70">
+        </div>
+        <h3 class="font-bold text-lg">${State.user.FullName}</h3>
+        <p class="text-xs text-slate-500 uppercase">${State.user.Role}</p>
+      </div>
       <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100 mb-4 shadow-sm"><p class="text-xs text-orange-600 font-bold uppercase mb-1">🛵 งานที่วิ่งสำเร็จ</p><div class="text-2xl font-black text-slate-800">${stats.handledCount} <span class="text-sm font-medium text-slate-500">ออเดอร์</span></div></div>
       <div class="space-y-3 text-left">
         <div><label class="text-xs font-bold text-slate-500 mb-1 block">รหัสพนักงาน</label><input class="input bg-slate-100" value="${State.user.EmpID||'-'}" disabled></div>
@@ -215,25 +224,14 @@ async function saveMyProfile() {
   try { await gas('updateMyProfile', data); State.user.FullName = data.FullName; sessionStorage.setItem('user', JSON.stringify(State.user)); closeModal(); Swal.fire('สำเร็จ', 'อัปเดตข้อมูลแล้ว', 'success'); } catch(e) { Swal.fire('Error', e.message, 'error'); btn.disabled = false; btn.innerHTML = 'อัปเดตข้อมูล'; }
 }
 
-/* ========================================================
-   ระบบคำนวณและฟอร์มบันทึกงาน
-   ======================================================== */
 window.calcFeeUI = function() {
-  const distInput = parseFloat(el('f_distance').value) || 0;
-  const unit = el('pf_unit').value;
+  const distInput = parseFloat(el('f_distance').value) || 0; const unit = el('pf_unit').value;
   let distanceMeters = unit === 'km' ? distInput * 1000 : distInput;
   let fee = 0;
-  
   if (distanceMeters > 0) {
-    if (distanceMeters <= 300) fee = 5;
-    else if (distanceMeters <= 500) fee = 10;
-    else if (distanceMeters <= 3000) fee = 15;
-    else fee = 25;
+    if (distanceMeters <= 300) fee = 5; else if (distanceMeters <= 500) fee = 10; else if (distanceMeters <= 3000) fee = 15; else fee = 25;
   }
-  
-  el('f_fee_disp').textContent = fee; 
-  el('f_fee').value = fee; 
-  el('pf_dist_km').value = (distanceMeters / 1000).toFixed(2);
+  el('f_fee_disp').textContent = fee; el('f_fee').value = fee; el('pf_dist_km').value = (distanceMeters/1000).toFixed(2);
 }
 
 function openOrderForm(id = null) {
@@ -279,7 +277,7 @@ function openOrderForm(id = null) {
             <input id="f_distance" type="number" step="0.01" class="input font-bold text-blue-600 text-lg w-2/3 bg-slate-50 border-none" placeholder="ระยะทาง" value="${displayDist}" oninput="calcFeeUI()">
             <select id="pf_unit" class="input w-1/3 bg-slate-50 border-none font-bold text-slate-600" onchange="calcFeeUI()"><option value="m" ${displayUnit==='m'?'selected':''}>เมตร (m)</option><option value="km" ${displayUnit==='km'?'selected':''}>กิโล (km)</option></select>
           </div>
-          <p class="text-[9px] text-slate-400 mt-1.5 text-center font-medium bg-slate-100 rounded-lg py-1">0-300m=5฿ | 301-500m=10฿ | 501-3km=15฿ | >3km=25฿</p>
+          <p class="text-[9px] text-slate-400 mt-1.5 text-center font-medium bg-slate-100 rounded-lg py-1">0-300m = 5฿ | 301-500m = 10฿ | 501-3km = 15฿ | >3km = 25฿</p>
         </div>
 
         <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">👤 ชื่อลูกค้า (ตัวเลือก)</label><input id="f_cust" type="text" class="input bg-slate-50 border-none" value="${d.CustomerName || ''}" placeholder="ระบุชื่อลูกค้า"></div>
@@ -296,7 +294,6 @@ function openOrderForm(id = null) {
   if(id) { calcFeeUI(); }
 }
 
-// Auto-fill ดึงประวัติลูกค้าเก่ามาใส่ฟอร์ม
 function checkAutoFill(numVal) {
   if(!numVal || el('f_id').value !== '') return;
   const fullRef = el('f_prefix').value + numVal;
@@ -319,7 +316,7 @@ async function saveOrderFunc() {
   if (isNaN(dist) || dist < 0) return Swal.fire('แจ้งเตือน', 'กรุณาระบุระยะทางให้ถูกต้อง', 'warning');
   
   const finalRef = el('f_prefix').value + num;
-  const data = { OrderID: el('f_id').value, OrderDate: dateVal, OrderRef: finalRef, CustomerName: el('f_cust').value, DistanceKM: el('pf_dist_km').value, FeeTHB: el('f_fee').value, PaymentMethod: el('f_pay').value, TotalPrice: el('f_total').value || 0 };
+  const data = { OrderID: el('f_id').value, OrderDate: dateVal, OrderRef: finalRef, CustomerName: el('f_cust').value, DistanceKM: el('pf_dist_km').value, FeeTHB: el('pf_fee') ? el('pf_fee').value : el('f_fee').value, PaymentMethod: el('f_pay').value, TotalPrice: el('f_total').value || 0 };
   
   el('btnSaveOrder').disabled = true; el('btnSaveOrder').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>';
   
@@ -334,9 +331,6 @@ function deleteOrderReq(id) {
   });
 }
 
-/* ========================================================
-   หน้าแดชบอร์ด (โหลดเร็ว Optimistic UI)
-   ======================================================== */
 async function render_dashboard() {
   const drawUI = (s, ordersList) => {
     let html = `
@@ -363,12 +357,22 @@ async function render_dashboard() {
         html += `
         <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center active:scale-95 transition ${isPaid?'opacity-60':''}">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold border border-orange-100"><i class="fa-solid fa-box"></i></div>
-            <div><p class="font-bold text-slate-800 text-sm">${o.OrderRef}</p><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-route opacity-50"></i> ${o.DistanceKM} กม.</p></div>
+            <div class="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold border border-orange-100"><img src="https://cdn-icons-png.flaticon.com/512/9561/9561640.png" class="w-6 h-6 opacity-70"></div>
+            <div>
+              <p class="font-bold text-slate-800 text-sm">${o.OrderRef}</p>
+              <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-route opacity-50"></i> ${o.DistanceKM} กม.</p>
+            </div>
           </div>
           <div class="flex items-center gap-3">
-            <div class="text-right"><p class="font-black text-emerald-500 text-lg">+฿${o.FeeTHB}</p>${isPaid ? `<p class="text-[8px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">จ่ายแล้ว</p>` : ''}</div>
-            ${!isPaid ? `<div class="border-l border-slate-100 pl-3 flex flex-col gap-1.5"><button onclick="openOrderForm('${o.OrderID}')" class="text-slate-400 hover:text-blue-500"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteOrderReq('${o.OrderID}')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button></div>` : ''}
+            <div class="text-right">
+              <p class="font-black text-emerald-500 text-lg">+฿${o.FeeTHB}</p>
+              ${isPaid ? `<p class="text-[8px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">จ่ายแล้ว</p>` : ''}
+            </div>
+            ${!isPaid ? `
+            <div class="border-l border-slate-100 pl-3 flex flex-col gap-1.5">
+              <button onclick="openOrderForm('${o.OrderID}')" class="text-slate-400 hover:text-blue-500"><i class="fa-solid fa-pen text-xs"></i></button>
+              <button onclick="deleteOrderReq('${o.OrderID}')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+            </div>` : ''}
           </div>
         </div>`;
       });
@@ -464,6 +468,7 @@ window.approveSettle = function() {
   });
 }
 
+// ================= จัดการแอดมิน =================
 function makePage(opt) { 
   return async function() { 
     try { const list = await gas(opt.fetchFn, {}); State.cache[opt.title] = list; State.cache.gpOpts = opt; el('content').innerHTML = `<div class="bg-white rounded-2xl shadow-sm border p-4 mb-4 flex justify-between"><input id="gpS" placeholder="ค้นหาพนักงาน..." class="input max-w-xs border-none bg-slate-50" oninput="window.renderGPRows()" /><button onclick="openGPForm()" class="btn btn-primary rounded-xl px-4"><i class="fa-solid fa-plus md:mr-1"></i> <span class="hidden md:inline">เพิ่มพนักงาน</span></button></div><div class="bg-white rounded-2xl shadow-sm border overflow-x-auto"><table class="w-full text-sm text-left whitespace-nowrap"><thead class="bg-slate-50 border-b"><tr>${opt.cols.map(c => `<th class="p-4 font-bold text-slate-500">${c.label}</th>`).join('')}<th class="p-4 text-center font-bold text-slate-500">จัดการ</th></tr></thead><tbody id="gpTb" class="divide-y"></tbody></table></div>`; window.renderGPRows(); } catch(e) { el('content').innerHTML = errorHtml(e); } 
