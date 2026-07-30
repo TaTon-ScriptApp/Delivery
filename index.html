@@ -253,23 +253,49 @@ window.calcFeeUI = function() {
   el('pf_dist_km').value = (distanceMeters / 1000).toFixed(2); // แปลงกลับเป็นกิโลเมตรเพื่อบันทึกลงฐานข้อมูล
 }
 
+/* ========================================================
+   เปิดฟอร์ม เพิ่ม/แก้ไข ออเดอร์ (ดึงข้อมูลเก่ามาครบ 100%)
+   ======================================================== */
 function openOrderForm(id = null) {
-  let d = { OrderID:'', OrderRef:'', CustomerName:'', DistanceKM:'', FeeTHB:0, PaymentMethod:'เงินสด', TotalPrice:'', OrderDate:'' };
+  // สร้างโครงสร้างข้อมูลเริ่มต้น (กรณีเพิ่มงานใหม่)
+  let d = { 
+    OrderID: '', 
+    OrderRef: '', 
+    CustomerName: '', 
+    DistanceKM: '', // ในชีตเราเก็บเป็นกิโลเมตร
+    FeeTHB: 0, 
+    PaymentMethod: 'เงินสด', 
+    TotalPrice: '', 
+    OrderDate: new Date().toISOString().substring(0, 10) // ค่าเริ่มต้นคือวันนี้
+  };
   
-  if(id && State.cache.todayOrders) { 
-    const f = State.cache.todayOrders.find(o => o.OrderID === id); 
-    if(f) d = f; 
+  // ถ้ามีการส่ง ID มา แปลว่าเป็นการ "แก้ไขข้อมูล" ให้ดึงข้อมูลเก่ามาทับ
+  if(id && State.cache.orders) { 
+    const found = State.cache.orders.find(o => o.OrderID === id); 
+    if(found) d = Object.assign({}, found); // คัดลอกข้อมูลเก่ามาทั้งหมด
+  } else if (id && State.cache.todayOrders) {
+    const found = State.cache.todayOrders.find(o => o.OrderID === id); 
+    if(found) d = Object.assign({}, found); 
   }
   
-  // แยก Prefix ออเดอร์อัตโนมัติ
-  let prefix = 'CPTH'; let num = '';
-  if (d.OrderRef.startsWith('AMTH')) { prefix = 'AMTH'; num = d.OrderRef.replace('AMTH',''); }
-  else if (d.OrderRef.startsWith('CPTH')) { prefix = 'CPTH'; num = d.OrderRef.replace('CPTH',''); }
-  else { num = d.OrderRef; }
+  // ดึง Prefix (CPTH/AMTH) และตัวเลขออกจาก OrderRef
+  let prefix = 'CPTH'; let numOnly = '';
+  if (d.OrderRef && d.OrderRef.startsWith('AMTH')) { prefix = 'AMTH'; numOnly = d.OrderRef.replace('AMTH',''); }
+  else if (d.OrderRef && d.OrderRef.startsWith('CPTH')) { prefix = 'CPTH'; numOnly = d.OrderRef.replace('CPTH',''); }
+  else if (d.OrderRef) { numOnly = d.OrderRef; }
 
-  // ใช้วันที่วันนี้เป็นค่าเริ่มต้น หรือใช้วันที่ที่เคยบันทึกไว้ (กรณีแก้ไข)
-  const todayStr = new Date().toISOString().substring(0,10);
-  const displayDate = d.OrderDate ? d.OrderDate.substring(0,10) : todayStr;
+  // จัดการเรื่องระยะทาง (เราเก็บในฐานข้อมูลเป็น กม. เสมอ)
+  // เพื่อความง่ายตอนแก้ไข เราจะโชว์เป็น กม. ไปเลยถ้ามีค่าอยู่แล้ว
+  let displayDist = d.DistanceKM;
+  let displayUnit = 'km';
+  if (!id) {
+    // ถ้าเพิ่มใหม่ ให้เคลียร์ว่าง และตั้งค่าเริ่มต้นเป็น เมตร (m)
+    displayDist = '';
+    displayUnit = 'm';
+  }
+
+  // ดึงวันที่ (ตัดเอาเฉพาะ YYYY-MM-DD)
+  let displayDate = d.OrderDate ? String(d.OrderDate).substring(0, 10) : new Date().toISOString().substring(0, 10);
 
   const html = `
     <div class="space-y-4">
@@ -283,12 +309,13 @@ function openOrderForm(id = null) {
       </div>
 
       <div class="grid grid-cols-1 gap-4">
-        <!-- เพิ่มช่อง "วันที่วิ่งงาน" สำหรับลงย้อนหลัง -->
+        <!-- วันที่วิ่งงาน -->
         <div>
           <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📅 วันที่วิ่งงาน <span class="text-red-500">*</span></label>
           <input id="f_date" type="date" class="input font-bold text-slate-700 bg-slate-50 border-none" value="${displayDate}">
         </div>
 
+        <!-- เลขออเดอร์ -->
         <div>
           <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📦 เลขออเดอร์ <span class="text-red-500">*</span></label>
           <div class="flex gap-2">
@@ -296,31 +323,41 @@ function openOrderForm(id = null) {
               <option value="CPTH" ${prefix==='CPTH'?'selected':''}>CPTH</option>
               <option value="AMTH" ${prefix==='AMTH'?'selected':''}>AMTH</option>
             </select>
-            <input id="f_num" type="number" class="input w-2/3 font-mono text-lg bg-slate-50 border-none" placeholder="เช่น 1234" value="${num}">
+            <input id="f_num" type="number" class="input w-2/3 font-mono text-lg bg-slate-50 border-none" placeholder="เช่น 1234" value="${numOnly}">
           </div>
         </div>
         
+        <!-- ระยะทาง -->
         <div>
           <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">📍 ระยะทาง <span class="text-red-500">*</span></label>
           <div class="flex gap-2">
-            <input id="f_distance" type="number" step="0.01" class="input font-bold text-blue-600 text-lg w-2/3 bg-slate-50 border-none" placeholder="เช่น 1.5" value="${d.DistanceKM ? d.DistanceKM * 1000 : ''}" oninput="calcFeeUI()">
+            <input id="f_distance" type="number" step="0.01" class="input font-bold text-blue-600 text-lg w-2/3 bg-slate-50 border-none" placeholder="ระยะทาง" value="${displayDist}" oninput="calcFeeUI()">
             <select id="pf_unit" class="input w-1/3 bg-slate-50 border-none font-bold text-slate-600" onchange="calcFeeUI()">
-              <option value="m">เมตร (m)</option>
-              <option value="km">กิโล (km)</option>
+              <option value="m" ${displayUnit==='m'?'selected':''}>เมตร (m)</option>
+              <option value="km" ${displayUnit==='km'?'selected':''}>กิโล (km)</option>
             </select>
           </div>
           <p class="text-[9px] text-slate-400 mt-1.5 text-center font-medium bg-slate-100 rounded-lg py-1">0-300m=5฿ | 301-500m=10฿ | 501-3km=15฿ | >3km=25฿</p>
         </div>
 
-        <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">👤 ชื่อลูกค้า (ตัวเลือก)</label><input id="f_cust" type="text" class="input bg-slate-50 border-none" value="${d.CustomerName}" placeholder="ระบุชื่อลูกค้า"></div>
+        <!-- ชื่อลูกค้า -->
+        <div>
+          <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">👤 ชื่อลูกค้า (ตัวเลือก)</label>
+          <input id="f_cust" type="text" class="input bg-slate-50 border-none" value="${d.CustomerName || ''}" placeholder="ระบุชื่อลูกค้า">
+        </div>
         
+        <!-- ยอดเงิน & วิธีจ่าย -->
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💰 ยอดเก็บเงิน</label><input id="f_total" type="number" class="input bg-slate-50 border-none" value="${d.TotalPrice}" placeholder="บาท"></div>
-          <div><label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💳 วิธีชำระเงิน</label>
-            <select id="f_pay" class="input bg-slate-50 border-none text-xs">
-              <option ${d.PaymentMethod==='เงินสด'?'selected':''}>เงินสด</option>
-              <option ${d.PaymentMethod==='โอน/เครดิต'?'selected':''}>โอน/เครดิต</option>
-              <option ${d.PaymentMethod==='TrueWallet'?'selected':''}>TrueWallet</option>
+          <div>
+            <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💰 ยอดเก็บเงิน</label>
+            <input id="f_total" type="number" class="input bg-slate-50 border-none" value="${d.TotalPrice || ''}" placeholder="บาท">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 mb-1 ml-1 block">💳 วิธีชำระเงิน</label>
+            <select id="f_pay" class="input bg-slate-50 border-none text-xs font-bold">
+              <option value="เงินสด" ${d.PaymentMethod==='เงินสด'?'selected':''}>เงินสด</option>
+              <option value="โอน/เครดิต" ${d.PaymentMethod==='โอน/เครดิต'?'selected':''}>โอน/เครดิต</option>
+              <option value="TrueWallet" ${d.PaymentMethod==='TrueWallet'?'selected':''}>TrueWallet</option>
             </select>
           </div>
         </div>
@@ -330,10 +367,13 @@ function openOrderForm(id = null) {
   
   openModal(id ? '✏️ แก้ไขข้อมูลงาน' : '🛵 บันทึกงานใหม่', html, `<button onclick="closeModal()" class="btn btn-secondary py-3 flex-1">ยกเลิก</button><button id="btnSaveOrder" onclick="saveOrderFunc()" class="btn btn-primary px-6 py-3 flex-1">บันทึกงาน</button>`);
   
-  // บังคับคำนวณ 1 ครั้งตอนเปิดฟอร์มแก้ไข เพื่อดึงค่าระยะทางแปลงเป็นเงินให้เห็นทันที
-  if(id) { el('pf_unit').value = 'km'; calcFeeUI(); }
+  // บังคับรันคำนวณอีกครั้งเพื่อให้ตัวเลขและค่าที่ซ่อนไว้อัปเดตล่าสุด
+  if(id) { calcFeeUI(); }
 }
 
+/* ========================================================
+   ฟังก์ชันบันทึก / อัปเดต ข้อมูล
+   ======================================================== */
 async function saveOrderFunc() {
   const num = el('f_num').value.trim(); 
   const dist = parseFloat(el('f_distance').value);
@@ -343,33 +383,36 @@ async function saveOrderFunc() {
   if (!num) return Swal.fire('แจ้งเตือน', 'กรุณาระบุเลขที่ออเดอร์', 'warning');
   if (isNaN(dist) || dist < 0) return Swal.fire('แจ้งเตือน', 'กรุณาระบุระยะทางให้ถูกต้อง', 'warning');
   
+  // สร้างเลข OrderRef ใหม่
   const finalRef = el('f_prefix').value + num;
+  
   const data = { 
     OrderID: el('f_id').value, 
     OrderDate: dateVal, 
     OrderRef: finalRef, 
     CustomerName: el('f_cust').value, 
-    DistanceKM: el('pf_dist_km').value, // ค่าที่ผ่านการแปลงเป็นกิโลเมตรแล้ว
-    FeeTHB: el('f_fee').value, 
+    DistanceKM: el('pf_dist_km').value, // ดึงค่า กม. ที่คำนวณซ่อนไว้
+    FeeTHB: el('pf_fee') ? el('pf_fee').value : el('f_fee').value, // ดึงค่าเงินที่ซ่อนไว้
     PaymentMethod: el('f_pay').value, 
     TotalPrice: el('f_total').value || 0 
   };
   
+  // ปุ่มโหลด
   el('btnSaveOrder').disabled = true; 
   el('btnSaveOrder').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังบันทึก...';
   
   try { 
+    // ยิง API เซฟข้อมูล
     await gas('saveOrder', data, State.user); 
     closeModal(); 
     Swal.fire('สำเร็จ', 'บันทึกข้อมูลเรียบร้อย', 'success'); 
-    loadCurrentPage(); // รีเฟรชหน้าเพื่อแสดงข้อมูลใหม่ทันที
+    loadCurrentPage(); // โหลดหน้าใหม่เพื่ออัปเดตข้อมูล
   } catch(e) { 
     Swal.fire('เกิดข้อผิดพลาด', e.message, 'error'); 
     el('btnSaveOrder').disabled = false; 
     el('btnSaveOrder').innerHTML = 'บันทึกงาน'; 
   }
 }
-
 function deleteOrderReq(id) {
   Swal.fire({ title: 'ยืนยันลบข้อมูล?', text: "ไม่สามารถกู้คืนได้", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบข้อมูล' }).then(res => {
     if(res.isConfirmed) { 
