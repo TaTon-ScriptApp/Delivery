@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Rider Fee Tracker</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { themeMain: 'var(--theme-main)' } } }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    /* เปลี่ยนสีหลักเป็นสีส้ม Delivery */
+    :root { --theme-main: #ea580c; } 
+    * { font-family:'Prompt', sans-serif; transition: background-color 0.3s, border-color 0.3s; } 
+    body { overflow:hidden; overscroll-behavior-y:none; }
+    .bg-main { background-color: var(--theme-main); }
+    .text-main { color: var(--theme-main); }
+    
+    .sidebar-link { display:flex; align-items:center; gap:.75rem; padding:.7rem 1rem; border-radius:.5rem; color:rgba(255,255,255,0.7); cursor:pointer; }
+    .sidebar-link:hover { background:rgba(255,255,255,0.1); color:#fff; } 
+    .sidebar-link.active { background:rgba(255,255,255,0.2); color:#fff; border-left: 4px solid #fff; }
+    
+    .badge { display:inline-flex; align-items:center; padding:.2rem .65rem; border-radius:9999px; font-size:.72rem; font-weight:600; white-space:nowrap; }
+    .input { width:100%; padding:.6rem 1rem; border:1px solid #d1d5db; border-radius:.5rem; outline:none; font-size:.875rem; background:transparent; } 
+    .input:focus { border-color:var(--theme-main); box-shadow:0 0 0 2px rgba(234,88,12,0.2); }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.6rem 1rem; border-radius:.5rem; font-weight:500; cursor:pointer; font-size:.875rem; border:none; transition:0.2s;}
+    .btn-primary { background-color: var(--theme-main); color:#fff; } 
+    .btn-primary:hover { opacity:0.9; transform:translateY(-1px); }
+    .btn-secondary { background:#e5e7eb; color:#374151; } 
+    .btn-icon { padding:.4rem .55rem; border-radius:.4rem; cursor:pointer; background:transparent; border:none; transition:0.2s;}
+    .btn-icon:hover { background:rgba(0,0,0,0.05); } 
+    .loader { border:3px solid #e5e7eb; border-top:3px solid var(--theme-main); border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; }
+    @keyframes spin { 0% { transform:rotate(0); } 100% { transform:rotate(360deg); } } 
+    
+    .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem); }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<!-- หน้าต่าง Login -->
+<div id="loginScreen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-[100]">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md relative">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-main text-white text-4xl mb-4 shadow-lg">
+        <i class="fa-solid fa-motorcycle"></i>
+      </div>
+      <h1 class="text-2xl font-bold">Rider Tracker</h1>
+      <p class="text-sm text-slate-500 mt-1 mb-2">ระบบบันทึกค่าเที่ยวการวิ่งงาน</p>
+    </div>
+    
+    <div class="space-y-4">
+      <input id="loginUser" type="text" class="input bg-slate-50" placeholder="ชื่อผู้ใช้งาน (Username)" />
+      <input id="loginPass" type="password" class="input bg-slate-50" placeholder="รหัสผ่าน" />
+      <button id="btnLogin" onclick="doLogin()" class="btn btn-primary w-full py-3 text-base mt-2 shadow-md">เข้าสู่ระบบ</button>
+      <div id="loginError" class="text-sm font-medium text-center hidden p-3 bg-red-100 text-red-600 rounded border border-red-200"></div>
+    </div>
+  </div>
+</div>
+
+<!-- โครงสร้างแอปหลัก -->
+<div id="app" class="hidden h-[100dvh] w-full flex">
+  
+  <aside id="sidebar" class="w-64 bg-slate-900 text-white hidden md:flex flex-col relative z-50">
+    <div class="p-5 border-b border-white/10 flex items-center gap-3">
+      <div class="w-10 h-10 bg-white text-main rounded-xl flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-motorcycle"></i></div>
+      <h2 class="font-bold text-sm">Rider Delivery</h2>
+    </div>
+    
+    <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto text-sm">
+      <div class="text-[11px] text-white/50 font-bold px-3 py-2 uppercase">จัดการงาน</div>
+      <button class="sidebar-link w-full text-left" data-page="dashboard"><i class="fa-solid fa-wallet w-5 text-center"></i> สรุปรายได้</button>
+      <button class="sidebar-link w-full text-left" data-page="orders"><i class="fa-solid fa-list w-5 text-center"></i> ประวัติงานทั้งหมด</button>
+      
+      <div class="text-[11px] text-white/50 font-bold px-3 py-2 mt-4 uppercase admin-only">แอดมิน</div>
+      <button class="sidebar-link w-full text-left admin-only" data-page="users"><i class="fa-solid fa-users w-5 text-center"></i> จัดการไรเดอร์</button>
+    </nav>
+    
+    <div class="p-4 border-t border-white/10">
+      <div onclick="openMyProfile()" class="flex items-center justify-between bg-black/20 p-3 rounded-xl cursor-pointer hover:bg-black/40 mb-2">
+        <div id="sideAvatarText" class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl shadow-inner">👤</div>
+        <div class="flex-1 min-w-0 px-3"><p id="userName" class="text-sm font-semibold truncate">-</p></div>
+      </div>
+      <button onclick="logout()" class="btn w-full justify-center bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white">ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-y-auto bg-slate-50 relative">
+    <header class="bg-white border-b px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+      <h1 id="pageTitle" class="text-xl font-bold uppercase text-slate-800">แดชบอร์ด</h1>
+      <button onclick="loadCurrentPage()" class="btn-icon bg-slate-100"><i class="fa-solid fa-arrows-rotate text-lg text-slate-500"></i></button>
+    </header>
+    <div id="content" class="p-4 md:p-6 pb-28 w-full"></div>
+  </main>
+
+  <!-- แถบเมนูด้านล่าง 5 ปุ่ม -->
+  <nav id="bottomNav" class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t flex justify-around items-center z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] pb-safe pt-2 px-1">
+    <button onclick="navigate('dashboard')" class="nav-bottom-link flex flex-col items-center text-main w-[20%]" data-page="dashboard" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
+      <i class="fa-solid fa-wallet text-xl mb-1"></i><span class="text-[9px] font-medium truncate w-full text-center">รายได้</span>
+    </button>
+    <button onclick="navigate('orders')" class="nav-bottom-link flex flex-col items-center text-slate-400 w-[20%]" data-page="orders" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
+      <i class="fa-solid fa-list text-xl mb-1"></i><span class="text-[9px] font-medium truncate w-full text-center">งานทั้งหมด</span>
+    </button>
+    <div class="w-[20%] flex justify-center -mt-8 relative z-10">
+      <button onclick="openOrderForm()" class="bg-main text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-transform" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
+        <i class="fa-solid fa-plus text-2xl"></i>
+      </button>
+    </div>
+    <button onclick="openMyProfile()" class="nav-bottom-link flex flex-col items-center text-slate-400 w-[20%]" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
+      <i class="fa-solid fa-circle-user text-xl mb-1"></i><span class="text-[9px] font-medium truncate w-full text-center">ฉัน</span>
+    </button>
+    <button onclick="logout()" class="nav-bottom-link flex flex-col items-center text-red-500 hover:text-red-600 w-[20%]" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
+      <i class="fa-solid fa-right-from-bracket text-xl mb-1"></i><span class="text-[9px] font-medium truncate w-full text-center">ออก</span>
+    </button>
+  </nav>
+</div>
+
+<div id="modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 pb-safe">
+  <div id="modalCard" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col mx-auto max-w-xl animate-[slideUp_0.3s_ease-out]">
+    <div class="px-5 py-4 border-b flex justify-between items-center">
+      <h3 id="modalTitle" class="font-bold text-lg">Modal</h3>
+      <button onclick="closeModal()" class="text-2xl text-slate-400 hover:text-red-500 p-2 -mr-2"><i class="fa-solid fa-xmark pointer-events-none"></i></button>
+    </div>
+    <div id="modalBody" class="p-5 overflow-y-auto flex-1 scrollbar-thin"></div>
+    <div id="modalFooter" class="px-5 py-4 border-t bg-slate-50 flex justify-end gap-3 rounded-b-2xl"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed top-6 right-6 z-[80] text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 transition-opacity"></div>
+
+<script>
+// ==============================================================================
+// 🚨 วาง URL ของ Google Apps Script ที่เพิ่ง Deploy ใหม่ตรงนี้ 🚨
+// ==============================================================================
+const API_URL = "https://script.google.com/macros/s/AKfycbzPw4UHWqmKatW106N_PUrHO20Skj_c_abgNLZEJmljb0JUrSPlunq6dZZdI_JCn-Wa/exec"; 
+
+function gas(fn, ...args) {
+  return new Promise(async function(resolve, reject) {
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn: fn, args: args })
+      });
+      const res = await response.json();
+      if (res.status === 'success') { resolve(res.data); } else { reject(new Error(res.message)); }
+    } catch (err) { reject(err); }
+  });
+}
+
+const State = { user: null, currentPage: 'dashboard', cache: {} };
+
+function el(id) { return document.getElementById(id); } 
+function show(id) { if(el(id)) el(id).classList.remove('hidden'); } 
+function hide(id) { if(el(id)) el(id).classList.add('hidden'); }
+
+function toast(msg, type) { 
+  const t = el('toast'); t.className = "fixed bottom-6 right-6 md:top-6 md:bottom-auto z-[80] text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 text-sm "; 
+  t.className += (type === 'error' ? 'bg-red-600' : 'bg-emerald-500');
+  t.innerHTML = "<i class='fa-solid " + (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check') + " text-xl'></i> <span class='font-medium'>" + msg + "</span>"; 
+  show('toast'); setTimeout(function() { hide('toast'); }, 3000); 
+}
+
+function openModal(title, body, footer) { 
+  el('modalTitle').textContent = title; el('modalBody').innerHTML = body; el('modalFooter').innerHTML = footer; show('modal'); 
+}
+function closeModal() { hide('modal'); } 
+function escapeHtml(text) { return String(text || '').replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]; }); }
+function errorHtml(error) { return "<div class='bg-white p-8 rounded-2xl text-center text-red-500 border'><i class='fa-solid fa-triangle-exclamation text-4xl mb-4 opacity-70'></i><p>" + escapeHtml(error.message || error) + "</p></div>"; }
+
+function doLogin() {
+  const btn = el('btnLogin'); const err = el('loginError');
+  const user = el('loginUser').value.trim(); const pass = el('loginPass').value.trim();
+  if (user === '' || pass === '') { err.innerHTML = 'กรุณากรอกข้อมูลให้ครบ'; show('loginError'); return; }
+  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังตรวจสอบ...'; hide('loginError');
+
+  gas('login', user, pass).then(function(res) {
+    if (res.ok) { 
+      State.user = res.user; sessionStorage.setItem('user', JSON.stringify(res.user)); initApp(); 
+    } else { 
+      err.textContent = res.message; show('loginError'); btn.disabled = false; btn.innerHTML = 'เข้าสู่ระบบ'; 
+    }
+  }).catch(function(e) { err.innerHTML = "<b>เกิดข้อผิดพลาดในการเชื่อมต่อ!</b><br>" + e.message; show('loginError'); btn.disabled = false; btn.innerHTML = 'เข้าสู่ระบบ'; });
+}
+
+function logout() { sessionStorage.removeItem('user'); window.location.reload(); }
+
+async function initApp() {
+  hide('loginScreen'); show('app');
+  el('userName').textContent = State.user.FullName; 
+  if (State.user.Role !== 'admin') { document.querySelectorAll('.admin-only').forEach(function(e) { e.classList.add('hidden'); }); }
+  
+  document.querySelectorAll('.sidebar-link').forEach(function(l) { l.addEventListener('click', function(e) { e.preventDefault(); navigate(l.dataset.page); }); });
+  navigate('dashboard');
+}
+
+const PAGE_INFO = { dashboard:'สรุปรายได้', orders:'ประวัติงานทั้งหมด', users:'จัดการพนักงาน' };
+
+function navigate(page) {
+  State.currentPage = page; 
+  document.querySelectorAll('.sidebar-link').forEach(function(l) { l.classList.toggle('active', l.dataset.page === page); }); 
+  document.querySelectorAll('.nav-bottom-link').forEach(function(l) { 
+    if(l.dataset.page) { if(l.dataset.page === page) { l.classList.add('text-main'); l.classList.remove('text-slate-400'); } else { l.classList.remove('text-main'); l.classList.add('text-slate-400'); } }
+  });
+  el('pageTitle').textContent = PAGE_INFO[page] || page.toUpperCase(); 
+  loadCurrentPage();
+}
+
+function loadCurrentPage() { 
+  el('content').innerHTML = "<div class='flex justify-center p-20'><div class='loader'></div></div>"; 
+  const fn = window['render_' + State.currentPage]; 
+  if(fn) { fn(); } else { el('content').innerHTML = "<div class='text-center p-20 text-slate-400'>กำลังพัฒนา...</div>"; }
+}
+
+async function openMyProfile() {
+  el('modalTitle').textContent = "โปรไฟล์ & ผลงาน"; el('modalBody').innerHTML = "<div class='flex justify-center py-10'><div class='loader'></div></div>"; el('modalFooter').innerHTML = "<button onclick='closeModal()' class='btn btn-secondary mr-auto'>ปิด</button>"; show('modal');
+  try {
+    const stats = await gas('getMyStats', State.user.UserID).catch(function(e) { return {handledCount:0}; });
+    let profileHtml = `
+    <div class="space-y-4 text-sm text-center">
+      <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200 mb-6 shadow-sm"><p class="text-xs text-orange-600 font-bold uppercase mb-2">🛵 งานที่วิ่งสำเร็จ</p><div class="flex justify-center items-center gap-4"><div class="text-5xl drop-shadow-md">🏆</div><div class="text-left"><div class="text-2xl font-bold text-slate-800">${stats.handledCount} <span class="text-sm font-normal text-slate-500">ออเดอร์</span></div></div></div></div>
+      <div class="text-left mt-4">
+        <div><label class="block font-semibold mb-1">รหัสพนักงาน</label><input class="input bg-slate-100" value="${State.user.EmpID||'-'}" disabled></div>
+        <div class="mt-3"><label class="block font-semibold mb-1">ชื่อ-นามสกุล <span class="text-red-500">*</span></label><input id="mp_name" class="input" value="${escapeHtml(State.user.FullName)}"></div>
+        <div class="mt-3"><label class="block font-semibold mb-1">เปลี่ยนรหัสผ่าน (เว้นว่างถ้าไม่ต้องการเปลี่ยน)</label><input id="mp_pass" type="password" class="input" placeholder="รหัสผ่านใหม่..."></div>
+      </div>
+    </div>`;
+    el('modalBody').innerHTML = profileHtml; el('modalFooter').innerHTML = "<button onclick='closeModal()' class='btn btn-secondary mr-auto'>ยกเลิก</button><button id='btnSaveMyProf' onclick='saveMyProfile()' class='btn btn-primary px-6'>อัปเดตโปรไฟล์</button>";
+  } catch(e) {}
+}
+
+async function saveMyProfile() {
+  const data = { UserID: State.user.UserID, FullName: el('mp_name').value };
+  const pass = el('mp_pass').value.trim(); if (pass) data.Password = pass;
+  if (!data.FullName) return toast('กรุณาใส่ชื่อของคุณ', 'warning');
+  const btn = el('btnSaveMyProf'); btn.disabled = true; btn.innerHTML = 'กำลังบันทึก...';
+  try { await gas('updateMyProfile', data); State.user.FullName = data.FullName; sessionStorage.setItem('user', JSON.stringify(State.user)); el('userName').textContent = State.user.FullName; closeModal(); toast('อัปเดตข้อมูลแล้ว', 'success'); } catch(e) { toast(e.message, 'error'); btn.disabled = false; btn.innerHTML = 'อัปเดตโปรไฟล์'; }
+}
+
+/* ========================================================
+   ระบบคำนวณค่ารอบอัจฉริยะ (Real-time Calculator)
+   0-300m = 5฿, 301-500m = 10฿, 501-3000m = 15฿, >3000m = 25฿
+   ======================================================== */
+window.calcFeeUI = function() {
+  const distInput = parseFloat(el('pf_distance').value) || 0;
+  const unit = el('pf_unit').value;
+  let distanceMeters = unit === 'km' ? distInput * 1000 : distInput;
+  
+  let fee = 0;
+  if (distanceMeters > 0) {
+    if (distanceMeters <= 300) fee = 5;
+    else if (distanceMeters <= 500) fee = 10;
+    else if (distanceMeters <= 3000) fee = 15;
+    else fee = 25;
+  }
+  
+  el('pf_fee_disp').textContent = fee + " บาท";
+  el('pf_fee').value = fee;
+  el('pf_dist_m').value = distanceMeters; // ซ่อนค่าเมตรที่แท้จริงไว้เพื่อบันทึก
+}
+
+function openOrderForm(orderId) {
+  let d = { OrderID:'', OrderRef:'', DistanceMeters: 0, FeeTHB: 0 };
+  if (orderId && State.cache.orders) { const found = State.cache.orders.find(function(p) { return p.OrderID === orderId; }); if (found) d = found; }
+  
+  // แยก Prefix กับ Number ออกจากกัน
+  let prefix = 'CPTH'; let numOnly = '';
+  if (d.OrderRef.startsWith('AMTH')) { prefix = 'AMTH'; numOnly = d.OrderRef.replace('AMTH',''); }
+  else if (d.OrderRef.startsWith('CPTH')) { prefix = 'CPTH'; numOnly = d.OrderRef.replace('CPTH',''); }
+  else { numOnly = d.OrderRef; }
+
+  openModal(d.OrderID ? 'แก้ไขออเดอร์' : 'เพิ่มออเดอร์ใหม่', `
+    <div class="space-y-4 text-sm">
+      <input type="hidden" id="pf_id" value="${d.OrderID}">
+      <input type="hidden" id="pf_fee" value="${d.FeeTHB}">
+      <input type="hidden" id="pf_dist_m" value="${d.DistanceMeters}">
+      
+      <div class="bg-orange-50 p-4 rounded-xl border border-orange-200 text-center mb-4">
+        <p class="text-xs text-orange-600 font-bold mb-1 uppercase">ค่าจัดส่งที่คำนวณได้</p>
+        <div id="pf_fee_disp" class="text-4xl font-black text-orange-600">${d.FeeTHB} บาท</div>
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-1">เลขที่ออเดอร์ (Order No.) <span class="text-red-500">*</span></label>
+        <div class="flex gap-2">
+          <select id="pf_prefix" class="input w-1/3 font-bold bg-slate-100">
+            <option value="CPTH" ${prefix==='CPTH'?'selected':''}>CPTH</option>
+            <option value="AMTH" ${prefix==='AMTH'?'selected':''}>AMTH</option>
+          </select>
+          <input id="pf_num" type="number" class="input w-2/3 font-mono text-lg" value="${numOnly}" placeholder="ระบุตัวเลข (เช่น 1234)">
+        </div>
+      </div>
+      
+      <div>
+        <label class="block font-semibold mb-1">ระยะทางการส่ง <span class="text-red-500">*</span></label>
+        <div class="flex gap-2">
+          <input id="pf_distance" type="number" class="input w-2/3 text-lg font-bold text-blue-600" value="${d.DistanceMeters}" placeholder="ใส่ระยะทาง" oninput="calcFeeUI()">
+          <select id="pf_unit" class="input w-1/3 bg-slate-100" onchange="calcFeeUI()">
+            <option value="m">เมตร (m)</option>
+            <option value="km">กิโลเมตร (km)</option>
+          </select>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">เรท: 0-300m=5฿ | 301-500m=10฿ | 501-3km=15฿ | >3km=25฿</p>
+      </div>
+    </div>
+  `, `<button onclick="closeModal()" class="btn btn-secondary">ยกเลิก</button><button id="btnSaveOrder" onclick="saveOrderFunc()" class="btn btn-primary px-6">บันทึกงาน</button>`);
+  
+  // บังคับคำนวณตอนเปิดฟอร์ม
+  if(d.OrderID) calcFeeUI();
+}
+
+async function saveOrderFunc() {
+  const num = el('pf_num').value.trim();
+  const dist = parseFloat(el('pf_distance').value);
+  if (!num) return toast('กรุณาระบุเลขที่ออเดอร์', 'warning');
+  if (isNaN(dist) || dist < 0) return toast('กรุณาระบุระยะทางให้ถูกต้อง', 'warning');
+  
+  const finalRef = el('pf_prefix').value + num;
+  const data = { OrderID: el('pf_id').value, OrderRef: finalRef, DistanceMeters: el('pf_dist_m').value, FeeTHB: el('pf_fee').value };
+  
+  const btn = el('btnSaveOrder'); btn.disabled = true; btn.innerHTML = 'บันทึก...';
+  try { await gas('saveOrder', data, State.user); closeModal(); toast('บันทึกสำเร็จ','success'); loadCurrentPage(); } 
+  catch(e) { toast(e.message,'error'); btn.disabled = false; btn.innerHTML = 'บันทึกงาน'; }
+}
+
+// ================= แดชบอร์ด & ประวัติ =================
+async function render_dashboard() {
+  try {
+    const d = await gas('getDashboardData', State.user.UserID, State.user.Role); State.cache.orders = d.orders; const s = d.summary;
+
+    let html = `
+      <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl p-6 mb-6 text-white shadow-lg relative overflow-hidden">
+        <i class="fa-solid fa-motorcycle text-8xl absolute -right-4 -bottom-4 opacity-10"></i>
+        <p class="text-sm font-medium opacity-80">ยอดเงินรวมวันนี้</p>
+        <h2 class="text-5xl font-black mt-1 mb-4">฿${s.todayIncome}</h2>
+        <div class="flex gap-4 border-t border-white/20 pt-4">
+          <div><p class="text-[10px] opacity-70 uppercase">งานวันนี้</p><p class="font-bold text-lg">${s.todayOrders} งาน</p></div>
+          <div class="border-l border-white/20 pl-4"><p class="text-[10px] opacity-70 uppercase">เดือนนี้</p><p class="font-bold text-lg">฿${s.monthIncome}</p></div>
+        </div>
+      </div>
+      
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-slate-700">ออเดอร์ล่าสุดของวันนี้</h3>
+        <button onclick="navigate('orders')" class="text-xs font-bold text-main">ดูทั้งหมด ></button>
+      </div>
+    `;
+
+    const todaysOnly = d.orders.filter(o => o.Date.startsWith(new Date().toISOString().substring(0,10)));
+
+    if(todaysOnly.length === 0) {
+      html += `<div class="bg-white rounded-2xl shadow-sm border border-dashed p-10 text-center text-slate-400"><i class="fa-solid fa-mug-hot text-5xl mb-3 opacity-50"></i><p>ยังไม่มีงานในวันนี้<br>รับออเดอร์แรกกันเลย!</p></div>`;
+    } else {
+      html += `<div class="space-y-3">`;
+      todaysOnly.slice(0,5).forEach(o => {
+        let distText = o.DistanceMeters >= 1000 ? (o.DistanceMeters/1000).toFixed(1) + ' km' : o.DistanceMeters + ' m';
+        html += `
+        <div class="bg-white p-4 rounded-2xl border shadow-sm flex justify-between items-center active:scale-95 transition" onclick="openOrderForm('${o.OrderID}')">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold shadow-inner"><i class="fa-solid fa-box"></i></div>
+            <div>
+              <p class="font-bold text-slate-800 text-sm">${o.OrderRef}</p>
+              <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-route opacity-50"></i> ระยะทาง: ${distText}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="font-black text-green-600 text-lg">+฿${o.FeeTHB}</p>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    el('content').innerHTML = html;
+  } catch(e) { el('content').innerHTML = errorHtml(e); }
+}
+
+async function render_orders() {
+  try {
+    const d = await gas('getDashboardData', State.user.UserID, State.user.Role); State.cache.orders = d.orders;
+    
+    el('content').innerHTML = `
+      <div class="bg-white p-3 rounded-2xl shadow-sm border mb-4 flex gap-2">
+        <div class="relative flex-1"><i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i><input id="searchOrder" placeholder="ค้นหาเลขที่ออเดอร์..." class="input pl-10 bg-slate-50" oninput="renderOrderList()" /></div>
+      </div>
+      <div id="orderList" class="space-y-3 pb-4"></div>`; 
+
+    window.renderOrderList = function() {
+      const q = el('searchOrder').value.toLowerCase(); 
+      const filtered = State.cache.orders.filter(r => !q || String(r.OrderRef).toLowerCase().includes(q));
+
+      el('orderList').innerHTML = filtered.map(o => {
+        let distText = o.DistanceMeters >= 1000 ? (o.DistanceMeters/1000).toFixed(1) + ' km' : o.DistanceMeters + ' m';
+        return `
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-2"><span class="bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded-md font-mono">${o.Date.substring(0,10)}</span> ${State.user.Role==='admin'?`<span class="text-[10px] text-slate-400">👤 ${o.RiderName}</span>`:''}</div>
+            <p class="font-black text-green-600 text-lg">฿${o.FeeTHB}</p>
+          </div>
+          <div class="flex justify-between items-end">
+            <div>
+              <p class="font-bold text-slate-800 text-base">${o.OrderRef}</p>
+              <p class="text-[11px] text-slate-500 mt-0.5"><i class="fa-solid fa-route opacity-50"></i> ระยะทาง: ${distText}</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="openOrderForm('${o.OrderID}')" class="w-8 h-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-pen text-xs"></i></button>
+              ${State.user.Role === 'admin' ? `<button onclick="deleteOrderReq('${o.OrderID}')" class="w-8 h-8 bg-red-50 text-red-600 rounded-full flex items-center justify-center hover:bg-red-100"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('') || `<div class="p-10 text-center text-slate-400"><p>ไม่พบข้อมูล</p></div>`;
+    }; 
+    window.renderOrderList();
+  } catch(e) { el('content').innerHTML = errorHtml(e); }
+}
+
+function deleteOrderReq(id) { openModal('ลบออเดอร์', `<div class="text-center text-red-500 py-4"><i class="fa-solid fa-triangle-exclamation text-5xl mb-4"></i><p>ยืนยันการลบออเดอร์นี้?</p></div>`, `<button onclick="closeModal()" class="btn btn-secondary">ยกเลิก</button><button onclick="gas('deleteOrder','${id}', State.user).then(function(){closeModal();toast('ลบแล้ว','success');loadCurrentPage();})" class="btn bg-red-600 text-white px-6">ลบข้อมูล</button>`); }
+
+// ================= แอดมิน =================
+function makePage(opt) { 
+  return async function() { 
+    try { const list = await gas(opt.fetchFn, {}); State.cache[opt.title] = list; State.cache.gpOpts = opt; el('content').innerHTML = `<div class="bg-white rounded-2xl shadow-sm border p-4 mb-6 flex justify-between"><input id="gpS" placeholder="ค้นหาข้อมูล..." class="input max-w-xs" oninput="window.renderGPRows()" /></div><div class="bg-white rounded-2xl shadow-sm border overflow-x-auto"><table class="w-full text-sm text-left whitespace-nowrap"><thead class="bg-slate-50 border-b"><tr>${opt.cols.map(c => `<th class="p-4 font-bold">${c.label}</th>`).join('')}</tr></thead><tbody id="gpTb" class="divide-y"></tbody></table></div>`; window.renderGPRows(); } catch(e) { el('content').innerHTML = errorHtml(e); } 
+  } 
+}
+window.renderGPRows = function() { 
+  const opt = State.cache.gpOpts; const q = el('gpS').value.toLowerCase(); const filtered = (State.cache[opt.title]||[]).filter(r => !q || Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+  el('gpTb').innerHTML = filtered.map(r => `<tr class="hover:bg-slate-50">${opt.cols.map(c => `<td class="p-4">${c.fmt ? c.fmt(r[c.key], r) : escapeHtml(r[c.key]||'-')}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="10" class="text-center p-10 text-slate-400">ไม่มีข้อมูล</td></tr>`; 
+};
+
+window.render_users = makePage({ title:'Users', id:'UserID', fetchFn:'getUsers', cols:[{key:'EmpID',label:'รหัสพนักงาน'},{key:'Username',label:'Username'},{key:'FullName',label:'ชื่อพนักงาน'},{key:'Role',label:'สิทธิ์'}] });
+
+window.addEventListener('DOMContentLoaded', function() { 
+  if(el('loginUser')) { el('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') el('loginPass').focus(); }); el('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }); }
+  try { const u = localStorage.getItem('user') || sessionStorage.getItem('user'); if (u) { State.user = JSON.parse(u); initApp(); return; } } catch(e) { sessionStorage.removeItem('user'); localStorage.removeItem('user'); }
+});
+</script>
+</body>
+</html>
